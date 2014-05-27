@@ -12,7 +12,7 @@
                   stdlib,
                   ssl,
                   pooler]},
-                  
+
   {mod, { cqerl_app, []}},
   {env, []}
  ]}.
