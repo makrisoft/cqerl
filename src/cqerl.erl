@@ -253,7 +253,7 @@ init([]) ->
 handle_call(get_any_client, _From, State=#cqerl_state{client_stats=[]}) ->
     {reply, {error, no_configured_node}, State#cqerl_state{retrying=false}};
 
-handle_call(get_any_client, From, State=#cqerl_state{client_stats=Stats, clients=Clients, retrying=Retrying}) ->
+handle_call(get_any_client, From, State=#cqerl_state{clients=Clients, retrying=Retrying}) ->
     case select_client(Clients, #cql_client{busy=false, _ = '_'}, From, State) of
         no_available_clients when Retrying ->
             retry;
@@ -398,6 +398,7 @@ handle_cast(_Msg, State) ->
 handle_info({'EXIT', From, Reason}, State=#cqerl_state{clients=Clients, client_stats=Stats}) ->
     case ets:lookup(Clients, From) of
         [#cql_client{node=NodeKey}] ->
+            ets:delete(Clients, From),
             {ok, CStats=#cql_client_stats{count=Count}} = orddict:find(NodeKey, Stats),
             {noreply, State#cqerl_state{client_stats = orddict:store(NodeKey, CStats#cql_client_stats{count = Count-1}, Stats)}};
         [] ->
@@ -562,7 +563,7 @@ make_option_getter(Local, Global) ->
     end.
 
 
-select_client(Clients, MatchClient = #cql_client{node=Node}, User, State) ->
+select_client(Clients, MatchClient = #cql_client{node=Node}, User, _State) ->
     case ets:match_object(Clients, MatchClient) of
         AvailableClients when length(AvailableClients) > 0 ->
             RandIdx = random:uniform(length(AvailableClients)),
